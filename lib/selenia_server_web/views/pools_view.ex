@@ -1,7 +1,15 @@
 defmodule SeleniaServerWeb.PoolsView do
 	use SeleniaServerWeb, :view
 
-	def render("push.json", %{data: data}) do
-		data
+	def render("fetch.json", %{link: link}) do
+		%{
+			link: link
+		}
+	end
+
+	def render("error.json", %{error: error}) do
+		%{
+			error: error
+		}	
 	end
 end

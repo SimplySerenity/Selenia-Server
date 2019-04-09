@@ -7,6 +7,9 @@ defmodule SeleniaServerWeb.Router do
 
   scope "/api", SeleniaServerWeb do
     pipe_through :api
-    post "/pools/push", PoolsController, :push
+
+    post "/pools/:pool_name", PoolsController, :new
+    post "/pools/:pool_name/links", PoolsController, :push
+    get "/pools/:pool_name/links", PoolsController, :fetch
   end
 end
