@@ -1,59 +1,53 @@
 defmodule Pools.Pool do
-	use GenServer
+	alias Ets.Set, as: Set
 
-	def start_link(opts \\ []) do
-		GenServer.start_link(__MODULE__, %{}, opts)
+	use ExActor.GenServer, export: __MODULE__
+	require Logger
+
+	defstart start_link(_args), do: initial_state(Set.new!()), export: __MODULE__
+
+	# creates an empty pool
+	defcast create(pool_name), state: state do
+		state
+		|> Set.put_new!({pool_name, Qex.new})
+		|> new_state
 	end
 
-	# Nice methods that wrap GenServer calls
-
-	# Attempts to create an empty pool
-	# fails if the pool already exists
-	def create(pool_name) do
-		GenServer.call(__MODULE__, {:create, pool_name, []})
+	# creates a pool with some initial data
+	defcast create(pool_name, links), state: state do
+		state
+		|> Set.put_new!({pool_name, Qex.new(links)})
+		|> new_state
 	end
 
-	# Attempts to create a new pool with the given links
-	# returns :ok on success or :error if the pool already exists
-	def create(pool_name, links) do
-		GenServer.call(__MODULE__, {:create, pool_name, links}) 
-	end
-
-	# Attepts to push the given links to the pool
-	# returns :ok for success and :error if the pool doesn't exist
-	def push(pool_name, links) do
-		GenServer.call(__MODULE__, {:push, pool_name, links})
-	end
-
-	def get(pool_name) do
-		GenServer.call(__MODULE__, {:get, pool_name})
-	end
-
-	# GenServer callbacks
-
-	def handle_call({:create, pool_name, links}, _from, state) do
-		case Map.has_key?(state, pool_name) do
-			false -> {:reply, :ok, Map.put(state, pool_name, :queue.from_list(links))}
-			true -> {:reply, :error, state}
+	# pushs links to the pool
+	defcast push(pool_name, links), state: state do
+		case state |> Set.get_element(pool_name, 2) do
+			{:ok, queue} ->
+				state 
+				|> Set.put!({pool_name, Enum.into(links, queue)})
+				|> new_state
+			{:error, _} ->
+				Logger.info "Failed to push to pool #{pool_name}"
 		end
 	end
 
-	def handle_call({:push, pool_name, links}, _from, state) do
-		case Map.get(state, pool_name) do
-			nil -> {:reply, :error, state}
-			queue -> {:reply, :ok, Map.put(state, pool_name, :queue.join(queue, :queue.from_list(links)))}
-		end
-	end
+	# returns the first link in the pool
+	defcall get(pool_name), state: state do
+		case state |> Set.get_element(pool_name, 2) do
+			{:ok, queue} ->
+				case Qex.pop(queue) do
+					{{:value, item}, queue} ->
+						state
+						|> Set.put!({pool_name, queue})
+						|> new_state
 
-	def handle_call({:get, pool_name}, _from, state) do
-		case Map.get(state, pool_name) do
-			nil -> {:reply, {:error}, state}
-			queue ->
-				if :queue.is_empty(queue) do
-					{:reply, {:empty}, state}
-				else
-					{:reply, :queue.out(queue), Map.put(state, pool_name, :queue.drop(queue))}
+						reply({:ok, item})
+					{:empty, _} ->
+						reply({:empty})
 				end
+			{:error, msg} ->
+				reply({:error, msg})
 		end
 	end
 end

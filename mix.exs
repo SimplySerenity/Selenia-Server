@@ -37,7 +37,10 @@ defmodule SeleniaServer.MixProject do
       {:gettext, "~> 0.11"},
       {:jason, "~> 1.0"},
       {:plug_cowboy, "~> 2.0"},
-      {:cowlib, "~> 2.7.0", override: true}
+      {:cowlib, "~> 2.7"},
+      {:exactor, "~> 2.2.4", warn_missing: false},
+      {:ets, "~> 0.7.0"},
+      {:qex, "~> 0.5"}
     ]
   end
 end

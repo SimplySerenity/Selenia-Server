@@ -5,24 +5,13 @@ defmodule SeleniaServerWeb.PoolsController do
 	def new(conn, params) do
 		case params["links"] do
 			nil -> 
-				case Pools.Pool.create(params["pool_name"]) do
-					:error -> 
-						conn 
-						|> send_resp(200, "")
-					:ok ->
-						conn
-						|> send_resp(201, "")
-				end
+				Pools.Pool.create(params["pool_name"])
 			links ->
-				case Pools.Pool.create(params["pool_name"], links) do
-					:error -> 
-						conn 
-						|> send_resp(200, "")
-					:ok ->
-						conn
-						|> send_resp(201, "")
-				end
+				Pools.Pool.create(params["pool_name"], links)
 		end
+
+		conn
+		|> send_resp(204, "")
 	end
 
 	def push(conn, params) do
@@ -31,30 +20,25 @@ defmodule SeleniaServerWeb.PoolsController do
 			|> put_status(400)
 			|> render("error.json", error: "Please specify the links you want to push to the pool.")
 		else
-			case Pools.Pool.push(params["pool_name"], params["links"]) do
-				:error -> 
-					conn
-					|> put_status(400)
-					|> render("error.json", error: "That pool doesn't exist.")
-				:ok ->
-					conn
-					|> send_resp(200, "")
-			end
+			Pools.Pool.push(params["pool_name"], params["links"])
+
+			conn
+			|> send_resp(204, "")
 		end
 	end
 
 	def fetch(conn, params) do
 		case Pools.Pool.get(params["pool_name"]) do
-			{{:value, link}, _queue} ->
+			{:ok, link} ->
 				conn
 				|> render("fetch.json", link: link)
 			{:empty} ->
 				conn
 				|> render("error.json", error: "That pool is currently empty.")
-			{:error} ->
+			{:error, msg} ->
 				conn
-				|> put_status(400)
-				|> render("error.json", error: "That pool doesn't exist.")
+				|> put_status(500)
+				|> render("error.json", error: msg)
 		end
 	end
 end
