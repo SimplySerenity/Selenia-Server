@@ -5,9 +5,10 @@ defmodule Pools.Supervisor do
 		Supervisor.start_link(__MODULE__, [], name: __MODULE__)
 	end
 
-	def init(state) do
+	def init(_state) do
 		children = [
-			worker(Pools.Pool, [[name: Pools.Pool]])
+			worker(Pools.Pool, [[name: Pools.Pool]]),
+			worker(Pools.Duplicates, [[name: Pools.Duplicates]])
 		]
 
 		supervise(children, strategy: :one_for_one)

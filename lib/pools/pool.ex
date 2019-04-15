@@ -4,7 +4,7 @@ defmodule Pools.Pool do
 	use ExActor.GenServer, export: __MODULE__
 	require Logger
 
-	defstart start_link(_args), do: initial_state(Set.new!()), export: __MODULE__
+	defstart start_link(_args), do: initial_state(Set.new!(name: :link_pools)), export: __MODULE__
 
 	# creates an empty pool
 	defcast create(pool_name), state: state do
@@ -15,6 +15,8 @@ defmodule Pools.Pool do
 
 	# creates a pool with some initial data
 	defcast create(pool_name, links), state: state do
+		Enum.each(links, fn link -> Pools.Duplicates.push(link) end)
+
 		state
 		|> Set.put_new!({pool_name, Qex.new(links)})
 		|> new_state
@@ -24,6 +26,12 @@ defmodule Pools.Pool do
 	defcast push(pool_name, links), state: state do
 		case state |> Set.get_element(pool_name, 2) do
 			{:ok, queue} ->
+				links = Enum.filter(links, fn link ->
+					!Pools.Duplicates.exists?(link)
+				end)
+
+				Enum.each(links, fn link -> Pools.Duplicates.push(link) end)
+
 				state 
 				|> Set.put!({pool_name, Enum.into(links, queue)})
 				|> new_state
