@@ -5,10 +5,12 @@ defmodule Pools.Duplicates do
 
 	defstart start_link(_args), do: initial_state(KVSet.new!(name: :duplicate_links)), export: __MODULE__
 
-	defcast push(link), state: state do
+	defcall push(link), state: state do
 		state
 		|> KVSet.put_new!(link, true)
 		|> new_state
+
+		reply(:ok)
 	end
 
 	defcall exists?(link), state: state do
